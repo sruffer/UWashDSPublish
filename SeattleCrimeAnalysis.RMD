@@ -1,0 +1,87 @@
+---
+title: "Who Said Crime Never Sleeps?"
+output: word_document
+date: "December 2015"
+---
+
+##Late Night Not as Acive as You Might Think 
+One widely held belief is that "nothing good happens after midnight", but according to crime statistics for Seattle from the summer months of 2014, not much bad is happening either (at least compared to the other times of the day).
+
+```{r}
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(lubridate))
+setwd("~/Coursera/UW_DSAS/datasci_course_materials/assignment6")
+sea_crime <- read.csv("seattle_incidents_summer_2014.csv")
+
+# Add columns for the Hour, Time of Day, and Precinct
+sea_crime$Hour <- hour(mdy_hms(sea_crime$Occurred.Date.or.Date.Range.Start))
+sea_crime$Time[sea_crime$Hour %in% 0:5] <- "Late Night"
+sea_crime$Time[sea_crime$Hour %in% 6:11] <- "Morning"
+sea_crime$Time[sea_crime$Hour %in% 12:17] <- "Afternoon"
+sea_crime$Time[sea_crime$Hour %in% 18:23] <- "Evening"
+sea_crime$Precinct[sea_crime$District.Sector %in% c('B','J','L','N','U')] <- "North"
+sea_crime$Precinct[sea_crime$District.Sector %in% c('C','E','G')] <- "East"
+sea_crime$Precinct[sea_crime$District.Sector %in% c('D','M','K','Q')] <- "West"
+sea_crime$Precinct[sea_crime$District.Sector %in% c('O','R','S')] <- "South"
+sea_crime$Precinct[sea_crime$District.Sector %in% c('F','W')] <- "Southwest"
+```
+*Figure 1*
+```{r}
+# Plot total crimes by time of day
+plot1 <- qplot(Time, data=sea_crime, fill = 1) + 
+    scale_x_discrete(limits=c("Morning","Afternoon","Evening","Late Night")) +
+    labs(title="Crimes in Seattle Summer 2014", x="Time of Day", y="Number of Crimes") +
+    guides(fill=FALSE)
+plot1
+```
+\
+Figure 1 shows that the Evening hours (6:00pm-Midnight) and Afternoon (Noon-6:00pm) are the most active times of day for criminals.  Even the Morning (6:00am-Noon) totaled more crimes than the Late Night hours (Midnight-6:00am).
+
+
+##What Are They Doing?
+Let's look at a breakdown of the highest occurring types of crimes committed within each timeframe to see if there are any differences throughout the day.
+```{r}
+# Aggregate count of crimes by Time of Day and Offense Description
+time_offense <- aggregate(RMS.CDW.ID ~ Time+Summarized.Offense.Description, data=sea_crime, length)
+# Sort within Time by descending Offense totals and filter for the top 6
+time_offense <- time_offense[order(time_offense$Time, -time_offense$RMS.CDW.ID),]
+topTO <- time_offense[time_offense$Time=="Morning",][1:6,]
+topTO <- rbind(topTO, time_offense[time_offense$Time=="Afternoon",][1:6,])
+topTO <- rbind(topTO, time_offense[time_offense$Time=="Evening",][1:6,])
+topTO <- rbind(topTO, time_offense[time_offense$Time=="Late Night",][1:6,])
+```
+\
+*Figure 2*
+```{r}
+plot2 <- ggplot(topTO, aes(x=Time, y=RMS.CDW.ID, fill=Summarized.Offense.Description)) +
+    geom_bar(stat="identity") + 
+    scale_x_discrete(limits=c("Morning","Afternoon","Evening","Late Night")) +
+    labs(title="Crimes in Seattle Summer 2014", x="Time of Day", y="Number of Crimes")
+plot2
+```
+\
+You can see in Figure 2 that Car Prowls have the highest number of offenses, regardless of the time of day.  Burglaries are more common in the Morning and Afternoon than they are in the Evening or Late Night.  Most Vehicle Thefts occur during the Evening, but Fraud largely occurs during the daytime (Morning and Afternoon) which makes sense as it's considered to be a "white-collar crime".
+
+
+##Where's the Action?
+Lastly, let's examine the data by location.  The Precincts were determined according to the Seattle Police Department website <http://www.seattle.gov/police/maps/precinct_map.htm>.
+```{r}
+# Aggregate count of crimes by Time of Day and Offense Description then Sort within Time by descending Offense totals
+time_precinct <- aggregate(RMS.CDW.ID ~ Time+Precinct, data=sea_crime, length)
+time_precinct <- time_precinct[order(time_precinct$Time, -time_precinct$RMS.CDW.ID),]
+```
+\
+*Figure 3*
+```{r}
+plot3 <- ggplot(time_precinct, aes(x=Time, y=RMS.CDW.ID, fill=Precinct)) +
+    geom_bar(stat="identity") + 
+    scale_x_discrete(limits=c("Morning","Afternoon","Evening","Late Night")) +
+    labs(title="Crimes in Seattle Summer 2014", x="Time of Day", y="Number of Crimes")
+plot3
+```
+\
+Looking at Figure 3, the North is the busiest Precinct while the Southwest is the quietest.  Nearly all of the Precincts follow the normal pattern of the data, however the East does buck one trend: it has a higher number of crimes that occurred during the Late Night than the Morning.
+
+Be safe out there, Seattle!
+
+
